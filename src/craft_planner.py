@@ -41,9 +41,6 @@ def make_checker(rule):
     def check(state):
         # This code is called by graph(state) and runs millions of times.
         # Tip: Do something with rule['Consumes'] and rule['Requires'].
-        print ("[check] state is " + str(state))
-        if state['Consumes'] == rule['Consumes'] and state['Requires'] == rule['Requires']:
-            return True
         return False
 
     return check
@@ -58,7 +55,6 @@ def make_effector(rule):
         # This code is called by graph(state) and runs millions of times
         # Tip: Do something with rule['Produces'] and rule['Consumes'].
         next_state = None
-        print("[effect] state is " + str(state))
         return next_state
 
     return effect
@@ -70,8 +66,6 @@ def make_goal_checker(goal):
 
     def is_goal(state):
         # This code is used in the search process and may be called millions of times.
-        if state is goal:
-            return True
         return False
 
     return is_goal
@@ -100,22 +94,24 @@ Input:  graph = graph()
 def search(graph, state, is_goal, limit, heuristic):
 
     start_time = time()
+    
     """
     Input: Finds a path to the goal
     Output: returns [(state, action)]
     """
     def a_star():
         # The set of nodes already evaluated
-        seenNodes = []
+        actions_taken = [] #closedSet
 
         # The set of currently discovered nodes that are not evaluated yet.
         # Initially, only the start node is known.
-        adjNodes = [graph(state)]
+        available_actions = [state] #openSet
 
         # For each node, which node it can most efficiently be reached from.
-        # If a node can be reached from many nodes, cameFrom will eventually contain the
+        # If a node can be reached from many nodes, came_from will eventually contain the
         # most efficient previous step.
-        cameFrom = None
+        came_from = {}
+        came_from[state] = None
 
         # For each node, the cost of getting from the start node to that node.
         # {current node: cost}
@@ -127,35 +123,52 @@ def search(graph, state, is_goal, limit, heuristic):
         # For each node, the total cost of getting from the start node to the goal
         # by passing by that node. That value is partly known, partly heuristic.
         # {current node: cost}
-        start_to_goal_cost := {}
+        start_to_goal_cost = {}
 
         # For the first node, that value is completely heuristic.
-        start_to_goal_cost[state] := heuristic(state)
+        start_to_goal_cost[state] = heuristic(state)
+        while available_actions:
+            print("***TESTING [a_star] ************************ THIS IS A NEW ITERATION *********************************")
+            min_action_list = start_to_goal_cost.items() #turns it into [(key, value), (key2, value2)]
+            #print("***TESTING [a_star] what is start_to_goal_cost? " + str(start_to_goal_cost))
+            #print("***TESTING [a_star] what is min_action_list? " + str(min_action_list))
+            current = min(min_action_list, key = lambda p: p[1]) #the node in available_actions having the lowest start_to_goal_cost value
+            
+            # print("***TESTING [a_star] what is start_to_goal_cost? " + str(start_to_goal_cost))
+            print("***TESTING [a_star] what is available_actions? " + str(available_actions))
+            print("***TESTING [a_star] what is current? " + str(current))
+            print("***TESTING [a_star] what is state? " + str(state)) 
+            print("***TESTING [a_star] state == current? " + str(state == current[0])) #current has a cost associated to it from the item() in min_action_list
+            print("***TESTING [a_star] is current in available_actions? " + str(current[0] in available_actions)) 
 
-        while adjNodes is not None
-            state = the node in openSet having the lowest fScore[] value
-            if current = goal
-                return reconstruct_path(cameFrom, current)
+            #if it reaches the goal, end
+            if is_goal(current):
+                return [(state, actions_taken)]
 
-            openSet.Remove(current)
-            closedSet.Add(current)
+            available_actions.remove(current[0]) #current is [(state, cost)]
+            actions_taken.append(current[0])
 
-            for each neighbor of current
-                if neighbor in closedSet
-                    continue        # Ignore the neighbor which is already evaluated.
+            #evalation of the next possible actions
+            list_of_possible_actions = graph(current)
+            for new_action in list_of_possible_actions:
+                print("***TESTING [a_star] what is new_action? " + str(new_action))
+                if new_action in actions_taken:
+                    continue    #Ignore the neighbor which is already evaluated.
 
                 # The distance from start to a neighbor
-                tentative_gScore := gScore[current] + dist_between(current, neighbor)
+                tentative_start_to_current_cost = start_to_current_cost[current] + 1 #dist_between(current, neighbor)
 
-                if neighbor not in openSet  # Discover a new node
-                    openSet.Add(neighbor)
-                else if tentative_gScore >= gScore[neighbor]
+                #if we should consider this action
+                if new_action not in available_actions:  # Discover a new node
+                    print("***TESTING [a_star] THIS SHOULD NOT BE WORKING")
+                    available_actions.append(new_action)
+                elif tentative_start_to_current_cost >= start_to_current_cost[new_action]:
                     continue        # This is not a better path.
 
                 # This path is the best until now. Record it!
-                cameFrom[neighbor] := current
-                gScore[neighbor] := tentative_gScore
-                fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
+                came_from[new_action] = current
+                start_to_current_cost[new_action] = tentative_start_to_current_cost
+                start_to_goal_cost[new_action] = start_to_current_cost[new_action] + heuristic(state)
 
 
     # Implement your search here! Use your heuristic here!
@@ -163,7 +176,6 @@ def search(graph, state, is_goal, limit, heuristic):
     # representing the path. Each element (tuple) of the list represents a state
     # in the path and the action that took you to this state
     # make A* here
-    print("[search] is_goal is " + str(graph))
     while time() - start_time < limit:
         return a_star()
 
@@ -202,7 +214,6 @@ if __name__ == '__main__':
     # Initialize first state from initial inventory
     state = State({key: 0 for key in Crafting['Items']})
     state.update(Crafting['Initial'])
-    print("[main] Crafting[Initial] is " + str(Crafting['Initial']))
     # Search for a solution
     resulting_plan = search(graph, state, is_goal, 5, heuristic)
 
