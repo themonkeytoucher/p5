@@ -100,14 +100,17 @@ Input:  graph = graph()
 def search(graph, state, is_goal, limit, heuristic):
 
     start_time = time()
-
+    """
+    Input: Finds a path to the goal
+    Output: returns [(state, action)]
+    """
     def a_star():
         # The set of nodes already evaluated
         seenNodes = []
 
         # The set of currently discovered nodes that are not evaluated yet.
         # Initially, only the start node is known.
-        unseenNodes = [start]
+        adjNodes = [graph(state)]
 
         # For each node, which node it can most efficiently be reached from.
         # If a node can be reached from many nodes, cameFrom will eventually contain the
@@ -115,20 +118,22 @@ def search(graph, state, is_goal, limit, heuristic):
         cameFrom = None
 
         # For each node, the cost of getting from the start node to that node.
-        gScore = {}
+        # {current node: cost}
+        start_to_current_cost = {}
 
         # The cost of going from start to start is zero.
-        gScore[start] = 0
+        start_to_current_cost[state] = 0
 
         # For each node, the total cost of getting from the start node to the goal
         # by passing by that node. That value is partly known, partly heuristic.
-        fScore := {}
+        # {current node: cost}
+        start_to_goal_cost := {}
 
         # For the first node, that value is completely heuristic.
-        fScore[start] := heuristic(state)
+        start_to_goal_cost[state] := heuristic(state)
 
-        while openSet is not empty
-            current := the node in openSet having the lowest fScore[] value
+        while adjNodes is not None
+            state = the node in openSet having the lowest fScore[] value
             if current = goal
                 return reconstruct_path(cameFrom, current)
 
@@ -152,6 +157,7 @@ def search(graph, state, is_goal, limit, heuristic):
                 gScore[neighbor] := tentative_gScore
                 fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
 
+
     # Implement your search here! Use your heuristic here!
     # When you find a path to the goal return a list of tuples [(state, action)]
     # representing the path. Each element (tuple) of the list represents a state
@@ -159,8 +165,7 @@ def search(graph, state, is_goal, limit, heuristic):
     # make A* here
     print("[search] is_goal is " + str(graph))
     while time() - start_time < limit:
-        action = effect(state)
-        return [(state, action)]
+        return a_star()
 
     # Failed to find a path
     print(time() - start_time, 'seconds.')
