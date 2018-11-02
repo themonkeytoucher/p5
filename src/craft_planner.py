@@ -1,3 +1,7 @@
+"""
+Last time on Dragonball Z:
+Working on the check functino
+"""
 import json
 from collections import namedtuple, defaultdict, OrderedDict
 from timeit import default_timer as time
@@ -41,7 +45,35 @@ def make_checker(rule):
     def check(state):
         # This code is called by graph(state) and runs millions of times.
         # Tip: Do something with rule['Consumes'] and rule['Requires'].
-        return False
+        
+        # rule['Requires'] is the object that you need (ex: crafting bench) {obj: bool}
+        # rule['Consumes'] are the actual items that will be used (ex: 3 wood) {obj: required #}
+        # state is your current inventory
+        
+        #Checks if the item actually consumes anything
+        if 'Consumes' in rule.keys():
+            consumes_list = list(rule['Consumes'].keys())
+        else:
+            consumes_list = []
+
+        #Checks if the item requires anything
+        if 'Requires'  in rule.keys():
+            requires_list = list(rule['Requires'].keys())
+        else:
+            requires_list = []
+
+        #{item: quantity}
+        curr_inv = state[0]
+        
+        # Checking if we have the resources to do
+        for consume in consumes_list:
+            if curr_inv[consume] < rule['Consumes'][consume]: # if we do not have enough materials
+                return False
+
+        for require in requires_list:
+            if curr_inv[require] < 1: #if we have what we require
+                return False
+        return True
 
     return check
 
@@ -105,7 +137,7 @@ def search(graph, state, is_goal, limit, heuristic):
 
         # The set of currently discovered nodes that are not evaluated yet.
         # Initially, only the start node is known.
-        available_actions = [state] #openSet
+        available_actions = [] #openSet
 
         # For each node, which node it can most efficiently be reached from.
         # If a node can be reached from many nodes, came_from will eventually contain the
@@ -119,7 +151,7 @@ def search(graph, state, is_goal, limit, heuristic):
 
         # The cost of going from start to start is zero.
         start_to_current_cost[state] = 0
-
+        available_actions.append(start_to_current_cost)
         # For each node, the total cost of getting from the start node to the goal
         # by passing by that node. That value is partly known, partly heuristic.
         # {current node: cost}
@@ -127,45 +159,54 @@ def search(graph, state, is_goal, limit, heuristic):
 
         # For the first node, that value is completely heuristic.
         start_to_goal_cost[state] = heuristic(state)
+
         while available_actions:
             print("***TESTING [a_star] ************************ THIS IS A NEW ITERATION *********************************")
-            min_action_list = start_to_goal_cost.items() #turns it into [(key, value), (key2, value2)]
-            #print("***TESTING [a_star] what is start_to_goal_cost? " + str(start_to_goal_cost))
-            #print("***TESTING [a_star] what is min_action_list? " + str(min_action_list))
-            current = min(min_action_list, key = lambda p: p[1]) #the node in available_actions having the lowest start_to_goal_cost value
-            
-            # print("***TESTING [a_star] what is start_to_goal_cost? " + str(start_to_goal_cost))
-            print("***TESTING [a_star] what is available_actions? " + str(available_actions))
-            print("***TESTING [a_star] what is current? " + str(current))
-            print("***TESTING [a_star] what is state? " + str(state)) 
-            print("***TESTING [a_star] state == current? " + str(state == current[0])) #current has a cost associated to it from the item() in min_action_list
-            print("***TESTING [a_star] is current in available_actions? " + str(current[0] in available_actions)) 
+            print("********* TESTING ********* [a_star] available_actions is " + str(available_actions))
 
+            #Find the min cost
+            min_cost = 999999999999 #some number that will always be bigger
+            current = None
+            for index in range(len(available_actions)):
+                for key in available_actions[index].keys():
+                    if available_actions[index][key] < min_cost: #if cost you are looking at 
+                        min_cost = available_actions[index][key]
+                        current = key
+
+            print("********* TESTING ********* [a_star] current is " + str(current))
+            
             #if it reaches the goal, end
             if is_goal(current):
                 return [(state, actions_taken)]
 
-            available_actions.remove(current[0]) #current is [(state, cost)]
-            actions_taken.append(current[0])
+            #find where that piece of shit current is
+            for index in range(len(available_actions)):
+                for key in available_actions[index].keys():
+                    if current is key:
+                        available_actions.remove(available_actions[index])
+            
+            #dispose of the body and make sure to clean up the crime scene
+            actions_taken.append(current)
 
-            #evalation of the next possible actions
-            list_of_possible_actions = graph(current)
-            for new_action in list_of_possible_actions:
-                print("***TESTING [a_star] what is new_action? " + str(new_action))
+            # find our next target
+            #creates (name, effect, cost)
+            list_of_tentative_actions = graph(current)
+            for new_action in list_of_tentative_actions:
                 if new_action in actions_taken:
                     continue    #Ignore the neighbor which is already evaluated.
 
                 # The distance from start to a neighbor
+                print("********* TESTING ********* [a_star] min_action_list is " + str(min_action_list))
+                print("********* TESTING ********* [a_star] current is " + str(current))
                 tentative_start_to_current_cost = start_to_current_cost[current] + 1 #dist_between(current, neighbor)
 
                 #if we should consider this action
-                if new_action not in available_actions:  # Discover a new node
-                    print("***TESTING [a_star] THIS SHOULD NOT BE WORKING")
-                    available_actions.append(new_action)
+                if new_action not in available_actions:  # Discover a new node!
+                    available_actions.append(new_action) # #soulmates #4ever
                 elif tentative_start_to_current_cost >= start_to_current_cost[new_action]:
-                    continue        # This is not a better path.
+                    continue        # Ew we can do better than that
 
-                # This path is the best until now. Record it!
+                # Record it, you sicko...
                 came_from[new_action] = current
                 start_to_current_cost[new_action] = tentative_start_to_current_cost
                 start_to_goal_cost[new_action] = start_to_current_cost[new_action] + heuristic(state)
@@ -188,17 +229,17 @@ if __name__ == '__main__':
     with open('Crafting.json') as f:
         Crafting = json.load(f)
 
-    # List of items that can be in your inventory:
-    print('All items:', Crafting['Items'])
+    # # List of items that can be in your inventory:
+    # print('All items:', Crafting['Items'])
     
-    # List of items in your initial inventory with amounts:
-    print('Initial inventory:', Crafting['Initial'])
+    # # List of items in your initial inventory with amounts:
+    # print('Initial inventory:', Crafting['Initial'])
     
-    # List of items needed to be in your inventory at the end of the plan:
-    print('Goal:',Crafting['Goal'])
+    # # List of items needed to be in your inventory at the end of the plan:
+    # print('Goal:',Crafting['Goal'])
     
-    # Dict of crafting recipes (each is a dict):
-    print('Example recipe:','craft stone_pickaxe at bench ->',Crafting['Recipes']['craft stone_pickaxe at bench'])
+    # # Dict of crafting recipes (each is a dict):
+    # print('Example recipe:','craft stone_pickaxe at bench ->',Crafting['Recipes']['craft stone_pickaxe at bench'])
 
     # Build rules
     all_recipes = []
