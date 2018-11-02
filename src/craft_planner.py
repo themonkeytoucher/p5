@@ -63,10 +63,12 @@ def make_checker(rule):
             requires_list = []
 
         #{item: quantity}
-        curr_inv = state[0]
-        
+        curr_inv = state
+        print("********* TESTING ********* [check] state is " + str(state))
         # Checking if we have the resources to do
         for consume in consumes_list:
+            print("********* TESTING ********* [check] consume is " + str(consume))
+            print("********* TESTING ********* [check] curr_inv is " + str(curr_inv[consume]))
             if curr_inv[consume] < rule['Consumes'][consume]: # if we do not have enough materials
                 return False
 
@@ -86,7 +88,7 @@ def make_effector(rule):
     def effect(state):
         # This code is called by graph(state) and runs millions of times
         # Tip: Do something with rule['Produces'] and rule['Consumes'].
-        next_state = None
+        next_state = state
         return next_state
 
     return effect
@@ -132,33 +134,37 @@ def search(graph, state, is_goal, limit, heuristic):
     Output: returns [(state, action)]
     """
     def a_star():
+        curr_inv = state
         # The set of nodes already evaluated
         actions_taken = [] #closedSet
 
         # The set of currently discovered nodes that are not evaluated yet.
         # Initially, only the start node is known.
-        available_actions = [] #openSet
+        starting_actions = graph(curr_inv)
+        available_actions =  []
+        for actions in starting_actions:
+            available_actions.append(actions)
 
         # For each node, which node it can most efficiently be reached from.
         # If a node can be reached from many nodes, came_from will eventually contain the
         # most efficient previous step.
         came_from = {}
-        came_from[state] = None
+        came_from[curr_inv] = None
 
         # For each node, the cost of getting from the start node to that node.
         # {current node: cost}
         start_to_current_cost = {}
 
         # The cost of going from start to start is zero.
-        start_to_current_cost[state] = 0
-        available_actions.append(start_to_current_cost)
+        start_to_current_cost[curr_inv] = 0
+        
         # For each node, the total cost of getting from the start node to the goal
         # by passing by that node. That value is partly known, partly heuristic.
         # {current node: cost}
         start_to_goal_cost = {}
 
         # For the first node, that value is completely heuristic.
-        start_to_goal_cost[state] = heuristic(state)
+        start_to_goal_cost[curr_inv] = heuristic(curr_inv)
 
         while available_actions:
             print("***TESTING [a_star] ************************ THIS IS A NEW ITERATION *********************************")
@@ -167,49 +173,47 @@ def search(graph, state, is_goal, limit, heuristic):
             #Find the min cost
             min_cost = 999999999999 #some number that will always be bigger
             current = None
+            curr_index = 0
             for index in range(len(available_actions)):
-                for key in available_actions[index].keys():
-                    if available_actions[index][key] < min_cost: #if cost you are looking at 
-                        min_cost = available_actions[index][key]
-                        current = key
+                if available_actions[index][2] < min_cost: #if cost you are looking at 
+                    min_cost = available_actions[index][2]
+                    current = available_actions[index]
+                    curr_index = index
 
             print("********* TESTING ********* [a_star] current is " + str(current))
             
-            #if it reaches the goal, end
+            # if it reaches the goal, end
             if is_goal(current):
-                return [(state, actions_taken)]
+                return [(curr_inv, actions_taken)]
 
-            #find where that piece of shit current is
-            for index in range(len(available_actions)):
-                for key in available_actions[index].keys():
-                    if current is key:
-                        available_actions.remove(available_actions[index])
+            # find where that piece of shit current is
+            available_actions.remove(available_actions[curr_index])
             
-            #dispose of the body and make sure to clean up the crime scene
+            # do the action and update inventory
             actions_taken.append(current)
+            curr_inv = current[1]
 
             # find our next target
-            #creates (name, effect, cost)
-            list_of_tentative_actions = graph(current)
+            # creates (name, effect, cost)
+            list_of_tentative_actions = graph(curr_inv)
             for new_action in list_of_tentative_actions:
+                print("********* TESTING ********* [a_star] new_action is " + str(new_action))
                 if new_action in actions_taken:
-                    continue    #Ignore the neighbor which is already evaluated.
+                    continue    # Ignore the neighbor which is already evaluated.
 
                 # The distance from start to a neighbor
-                print("********* TESTING ********* [a_star] min_action_list is " + str(min_action_list))
-                print("********* TESTING ********* [a_star] current is " + str(current))
                 tentative_start_to_current_cost = start_to_current_cost[current] + 1 #dist_between(current, neighbor)
 
-                #if we should consider this action
-                if new_action not in available_actions:  # Discover a new node!
+                # if we should consider this action
+                if new_action not in available_actions: # Discover a new node!
                     available_actions.append(new_action) # #soulmates #4ever
                 elif tentative_start_to_current_cost >= start_to_current_cost[new_action]:
                     continue        # Ew we can do better than that
 
-                # Record it, you sicko...
+                # Update
                 came_from[new_action] = current
                 start_to_current_cost[new_action] = tentative_start_to_current_cost
-                start_to_goal_cost[new_action] = start_to_current_cost[new_action] + heuristic(state)
+                start_to_goal_cost[new_action] = start_to_current_cost[new_action] + heuristic(curr_inv)
 
 
     # Implement your search here! Use your heuristic here!
