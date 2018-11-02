@@ -148,6 +148,24 @@ Prunes available actions by:
 """
 def heuristic(state):
     #Implement your heuristic here!
+    list_of_items = [
+    "bench",
+    "cart",
+    "furnace",
+    "iron_axe",
+    "iron_pickaxe",
+    "rail",
+    "stone_axe",
+    "stone_pickaxe",
+    "wooden_axe",
+    "wooden_pickaxe"
+    ]
+    action, inv, cost = state
+
+    #checking if we are crafting something we already have
+    for items in list_of_items:
+        if items in action and 'craft' in action:
+            return 999999
     return 0
 
 """
@@ -204,8 +222,8 @@ def search(graph, state, is_goal, limit, heuristic):
             start_to_current_cost[actions[0]] = actions[2]
 
         while available_actions:
-            #print("***************** TESTING ***************** [a_star] ************************ THIS IS A NEW ITERATION *********************************")
-            print("************** TESTING ************** available_actions is " + str(available_actions))
+            print("-------------------------------------------- THIS IS A NEW ITERATION ------------------------------------------------")
+            print("************** TESTING ************** starting available_actions is " + str(available_actions))
             #Figuring out which action we should be taking
             #Find the min cost
             min_cost = heuristic_cost[available_actions[0][0]] #initial minimum cost
@@ -236,12 +254,10 @@ def search(graph, state, is_goal, limit, heuristic):
             #loop through all neighbors and update their info
             #creates (name, effect, cost)
             list_of_tentative_actions = graph(curr_inv)
-            #print("************** TESTING ************** current in key " + str(current in start_to_current_cost.keys()))
             for new_action in list_of_tentative_actions:
-                #print("************** TESTING ************** current in key " + str(current in start_to_current_cost.keys()))
-                #print("************** TESTING ************** current is " + str(current))
-
+                print("************** TESTING ************** new_action is " + str(new_action))
                 if new_action in actions_taken:
+                    start_to_current_cost[new_action[0]]+=1
                     continue    #Ignore the neighbor which is already evaluated.
 
                 #The distance from start to a neighbor
