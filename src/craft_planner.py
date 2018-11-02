@@ -115,9 +115,16 @@ def make_goal_checker(goal):
     #Implement a function that returns a function which checks if the state has
     #met the goal criteria. This code runs once, before the search is attempted.
 
+    """
+    Input: (action, state, cost)
+    Output: if in state or not
+    """
     def is_goal(state):
         #This code is used in the search process and may be called millions of times.
-        if goal in state:
+        list_goal = list(goal.items())
+        print("************** TESTING ************** list_goal is " + str(list_goal[0]))
+        if list_goal[0] in state[1]:
+            print("************** TESTING ************** this is working")
             return True
         return False
 
@@ -133,7 +140,7 @@ def graph(state):
             yield (r.name, r.effect(state), r.cost)
 
 """
-Input: current inventory
+Input: current action (action, state, cost)
 Output: A score for the best path
 Prunes available actions by:
  1. Setting making tools you already have to very high numbers
@@ -198,11 +205,9 @@ def search(graph, state, is_goal, limit, heuristic):
 
         while available_actions:
             #print("***************** TESTING ***************** [a_star] ************************ THIS IS A NEW ITERATION *********************************")
-            
+            print("************** TESTING ************** available_actions is " + str(available_actions))
             #Figuring out which action we should be taking
             #Find the min cost
-            print("***************** TESTING ***************** heuristic_cost is " + str(heuristic_cost.keys()))
-            print("************** TESTING ************** available_actions[0] is " + str(available_actions[0]))
             min_cost = heuristic_cost[available_actions[0][0]] #initial minimum cost
             current = available_actions[0] #initial current
             curr_index = 0
@@ -245,15 +250,14 @@ def search(graph, state, is_goal, limit, heuristic):
                 #if we should consider this action
                 if new_action not in available_actions: #Discover a new node!
                     available_actions.append(new_action)
-                elif tentative_start_to_current_cost >= start_to_current_cost[new_action]:
+                elif tentative_start_to_current_cost >= start_to_current_cost[new_action[0]]:
                     continue        #Ew we can do better than that
 
                 #Update
                 start_to_current_cost[new_action[0]] = tentative_start_to_current_cost
-                heuristic_cost[new_action] = start_to_current_cost[new_action[0]] + heuristic(current)
-                print("************** TESTING ************** heuristic_cost[new_action] is " + str(heuristic_cost[new_action]))
-
-
+                heuristic_cost[new_action[0]] = start_to_current_cost[new_action[0]] + heuristic(current)
+            print("************** TESTING ************** ending available_actions is " + str(available_actions))
+        print("No possible way to do this")
     #Implement your search here! Use your heuristic here!
     #When you find a path to the goal return a list of tuples [(state, action)]
     #representing the path. Each element (tuple) of the list represents a state
