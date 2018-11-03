@@ -55,7 +55,7 @@ def make_checker(rule):
         #Checks if the item actually consumes anything
         if 'Consumes' in rule.keys():
             consumes_list = list(rule['Consumes'].keys())
-
+            
         #Checks if the item requires anything
         if 'Requires'  in rule.keys():
             requires_list = list(rule['Requires'].keys())
@@ -71,6 +71,7 @@ def make_checker(rule):
         for require in requires_list:
             if curr_inv[require] < 1: #if we have what we require
                 return False
+
         return True
 
     return check
@@ -92,20 +93,21 @@ def make_effector(rule):
         #check if they actually need to consume anything or produces anything
         if 'Consumes' in rule.keys():
             consumes_list = list(rule['Consumes'].keys())
-
         if 'Produces' in rule.keys():
             produce_list = list(rule['Produces'].keys())
 
         #sets the next state as the current state so we can work with it
-        next_state = state 
+        next_state = state.copy()
 
         #for each of the resources, add to inv if we are producing it and take away if we are consuming it
         #doesn't run if we don't consume or produce anything since they would stay as empty lists thus the loop doesn't run
         for resources in produce_list:
             next_state[resources] += rule['Produces'][resources] #adds the stuff produced into inventory
+            #print("We made " + str(resources) + " " + str(rule['Produces'][resources]))
 
         for consume in consumes_list:
             next_state[consume] -= rule['Consumes'][consume]
+            #print("We used " + str(rule['Consumes'][consume]) + " " + str(consume))
         return next_state
 
     return effect
@@ -119,14 +121,13 @@ def make_goal_checker(goal):
     Input: (action, state, cost)
     Output: if in state or not
     """
-    def is_goal(state):
+    def is_goal(state):        
         #This code is used in the search process and may be called millions of times.
-        list_goal = list(goal.items())
-        print("************** TESTING ************** list_goal is " + str(list_goal[0]))
-        if list_goal[0] in state[1]:
-            print("************** TESTING ************** this is working")
-            return True
-        return False
+        action, inv, cost = state
+        for key in goal.keys():
+            if inv[key] <= goal[key]:
+                return False
+        return True
 
     return is_goal
 
@@ -140,11 +141,12 @@ def graph(state):
             yield (r.name, r.effect(state), r.cost)
 
 """
-Input: current action (action, state, cost)
+Input: current action (action, new action state, curr_state, cost)
 Output: A score for the best path
 Prunes available actions by:
  1. Setting making tools you already have to very high numbers
- 2. 
+ 2. Find the materials required to make the goal
+    a. if we are making that material then we set it high
 """
 def heuristic(state):
     #Implement your heuristic here!
@@ -154,19 +156,34 @@ def heuristic(state):
     "furnace",
     "iron_axe",
     "iron_pickaxe",
-    "rail",
     "stone_axe",
     "stone_pickaxe",
     "wooden_axe",
     "wooden_pickaxe"
     ]
-    action, inv, cost = state
+    action, new_inv, curr_inv, cost = state
+    item_being_produced = "h"
+    goals = Crafting['Goal']
+    goal_keys = []
 
-    #checking if we are crafting something we already have
-    for items in list_of_items:
-        if items in action and 'craft' in action:
-            return 999999
-    return 0
+    for key in goals:
+        goal_keys.append(key)
+    for key in Crafting['Recipes'][action]['Produces'].keys():
+        item_being_produced = key
+
+    if item_being_produced in goal_keys and curr_inv[item_being_produced] < goals[item_being_produced]:
+        return -1000
+    #if we are producing an item that we only need one of
+    elif item_being_produced in list_of_items and item_being_produced not in goal_keys:
+        if curr_inv[item_being_produced] > 0:
+            return 999999999
+        return 5 #we do not have one of these so produce it
+    elif curr_inv[item_being_produced] > 10:
+        return 20 + curr_inv[item_being_produced]
+    
+    return 10 + curr_inv[item_being_produced]
+
+    
 
 """
 Input:  graph = graph()
@@ -184,7 +201,7 @@ def search(graph, state, is_goal, limit, heuristic):
     Output: returns [(state, action), (state, action), ...]
     """
     def a_star():
-        curr_inv = state
+        curr_inv = state.copy()
         #The set of nodes already evaluated
         actions_taken = [] #closedSet
 
@@ -215,15 +232,16 @@ def search(graph, state, is_goal, limit, heuristic):
             #putting possible actions into the list
             available_actions.append(actions)
             
-            #heuristics plus actual distance
-            heuristic_cost[actions[0]] = heuristic(actions)
+            inputs = (actions[0], actions[1], curr_inv, 0)
+            heuristic_cost[actions[0]] = heuristic(inputs)
 
             #going to itself
             start_to_current_cost[actions[0]] = actions[2]
 
+        #main loop
         while available_actions:
-            print("-------------------------------------------- THIS IS A NEW ITERATION ------------------------------------------------")
-            print("************** TESTING ************** starting available_actions is " + str(available_actions))
+            #print("-------------------------------------------- THIS IS A NEW ITERATION ------------------------------------------------")
+            
             #Figuring out which action we should be taking
             #Find the min cost
             min_cost = heuristic_cost[available_actions[0][0]] #initial minimum cost
@@ -239,29 +257,36 @@ def search(graph, state, is_goal, limit, heuristic):
                     current = action
                     curr_index = index
 
+            #print("************** CURRENT ACTION ************** " + str(current))
             #if it reaches the goal, end
             if is_goal(current):
-                return return_list
+                print("Time taken: " + str(time()))
+                print("[cost=" + str(item_cost) +", len="+str(len_cost)+"]")
+                return (return_list)
 
             #do the action and update inventory
-            available_actions.remove(available_actions[curr_index])
+            available_actions.clear()
             actions_taken.append(current)
             item_cost += current[2]
             len_cost += 1
-            return_list.append((curr_inv, current)) #update the steps taken
+            return_list.append((curr_inv, current[0])) #update the steps taken
             curr_inv = current[1] #changes the state
+
+            #print("//////////// CURR_INV ///////////// " + str(curr_inv))
 
             #loop through all neighbors and update their info
             #creates (name, effect, cost)
             list_of_tentative_actions = graph(curr_inv)
             for new_action in list_of_tentative_actions:
-                print("************** TESTING ************** new_action is " + str(new_action))
+                
+                #print("______NEW ACTION_______ " + str(new_action[0]))
+                
                 if new_action in actions_taken:
                     start_to_current_cost[new_action[0]]+=1
-                    continue    #Ignore the neighbor which is already evaluated.
+                    #continue    #Ignore the neighbor which is already evaluated.
 
                 #The distance from start to a neighbor
-                tentative_start_to_current_cost = start_to_current_cost[current[0]] + 1 #dist_between(current, neighbor)
+                tentative_start_to_current_cost = start_to_current_cost[current[0]] #dist_between(current, neighbor)
 
                 #if we should consider this action
                 if new_action not in available_actions: #Discover a new node!
@@ -271,14 +296,19 @@ def search(graph, state, is_goal, limit, heuristic):
 
                 #Update
                 start_to_current_cost[new_action[0]] = tentative_start_to_current_cost
-                heuristic_cost[new_action[0]] = start_to_current_cost[new_action[0]] + heuristic(current)
-            print("************** TESTING ************** ending available_actions is " + str(available_actions))
+                heuristic_input = (new_action[0], new_action[1], current[1], current[2])
+                heuristic_cost[new_action[0]] = start_to_current_cost[new_action[0]] + heuristic(heuristic_input)
+                #print("heuristic_cost of " + str(new_action[0]) + " is " + str(heuristic_cost[new_action[0]]))
+            
+            #print("************** TESTING ************** ending available_actions is " + str(available_actions))
+        
         print("No possible way to do this")
     #Implement your search here! Use your heuristic here!
     #When you find a path to the goal return a list of tuples [(state, action)]
     #representing the path. Each element (tuple) of the list represents a state
     #in the path and the action that took you to this state
     #make A* here
+    
     while time() - start_time < limit:
         return a_star()
 
@@ -318,10 +348,10 @@ if __name__ == '__main__':
     state = State({key: 0 for key in Crafting['Items']})
     state.update(Crafting['Initial'])
     #Search for a solution
-    resulting_plan = search(graph, state, is_goal, 5, heuristic)
+    resulting_plan = search(graph, state, is_goal, 30, heuristic)
 
     if resulting_plan:
         #Print resulting plan
         for state, action in resulting_plan:
-            print('\t',state)
-            print(action)
+           print('\t',state)
+           print(action)
